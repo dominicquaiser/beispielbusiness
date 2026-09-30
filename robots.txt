@@ -1,4 +1,6 @@
 # robots.txt – beispielbusiness.de
+# Test- und Scraping-Sandbox: Crawling ist erlaubt.
+# Alle Seiten tragen noindex und werden nicht in Suchmaschinen-Indizes aufgenommen.
 User-agent: *
 Allow: /
 

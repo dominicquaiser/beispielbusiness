@@ -4,12 +4,15 @@ Statische Website der **fiktiven** Beispielbusiness GmbH – einem erfundenen He
 und modularer Spanntechnik. Die Website dient als öffentlich zugängliche Test- und Scraping-Sandbox für
 Web-Scraping, Company-Data-Enrichment und Datenaggregation.
 
-Alle Unternehmens-, Personen-, Produkt- und Kontaktdaten sind frei erfunden. Die Kennzeichnung als Sandbox erfolgt
-im Impressum.
+Alle Unternehmens-, Personen-, Produkt- und Kontaktdaten sind frei erfunden. Echt sind nur die Angaben zum
+Anbieter der Website: Sie stehen auf jeder Seite in einer eigenen Leiste unten im Footer (Krake-Design). Die
+ausführliche Kennzeichnung als Sandbox steht im Impressum.
 
 - Nur HTML, CSS und Vanilla JavaScript – keine Frameworks, kein Build-Schritt
 - Alle Inhalte stehen im initialen HTML; JavaScript ergänzt nur mobile Navigation, FAQ-Anker und Formularprüfung
 - Keine Cookies, kein Tracking, keine externen Ressourcen (Schriften lokal)
+- Nicht in Suchmaschinen-Indizes: `<meta name="robots" content="noindex, follow">` auf jeder Seite und
+  `X-Robots-Tag: noindex, follow` für alle Antworten. Crawling bleibt erlaubt (`robots.txt`), Scraper sind nicht betroffen
 
 ## Start
 
@@ -38,10 +41,10 @@ beispielbusiness.de, www.beispielbusiness.de {
 Anfragen an `www.beispielbusiness.de` leitet nginx per 301 auf `https://beispielbusiness.de` um. Sobald die Domain
 dauerhaft per HTTPS läuft, kann in `nginx.conf` der vorbereitete HSTS-Header aktiviert werden.
 
-**Rechtlicher Hinweis:** Für eine öffentlich erreichbare Website in Deutschland ist ein Impressum des tatsächlichen
-Betreibers erforderlich. Impressum und Datenschutzerklärung verweisen dafür auf krake.run. Bitte prüfen, ob dort
-vollständige Betreiberangaben stehen, oder diese direkt in `impressum/index.html` und `datenschutz/index.html`
-ergänzen. Die Datenschutzerklärung nennt eine Log-Aufbewahrung von höchstens 14 Tagen; das muss zum Hosting passen.
+**Rechtliches:** Die echten Anbieterangaben nach § 5 DDG (Dominic M. Quaiser, Chemnitz) stehen in der Leiste
+„Anbieter dieser Website“ am Ende jeder Seite (Anker `#anbieter`). Im Impressum heißen die erfundenen Firmendaten
+„Fiktive Unternehmensangaben (Testdaten)“ und sind ausdrücklich keine Anbieterangaben. Die Datenschutzerklärung nennt
+den echten Verantwortlichen. Sie gibt eine Log-Aufbewahrung von höchstens 14 Tagen an; das muss zum Hosting passen.
 
 ## Aufbau
 
@@ -64,7 +67,7 @@ ergänzen. Die Datenschutzerklärung nennt eine Log-Aufbewahrung von höchstens 
 ├── assets/css/style.css, assets/css/noscript.css
 ├── assets/js/main.js
 ├── assets/img/                     Logo, Favicons, Open-Graph-Bild, Produktzeichnung (SVG)
-├── assets/fonts/                   Barlow / Barlow Semi Condensed (SIL OFL 1.1, siehe OFL.txt)
+├── assets/fonts/                   Barlow / Barlow Semi Condensed (OFL.txt), Roboto Mono (OFL-RobotoMono.txt), SIL OFL 1.1
 ├── Dockerfile, docker-compose.yml, nginx.conf
 ```
 
@@ -77,6 +80,7 @@ ergänzen. Die Datenschutzerklärung nennt eine Log-Aufbewahrung von höchstens 
 - Cache-Header: HTML `no-cache`, CSS/JS/Bilder 30 Tage (CSS/JS über `?v=` versioniert), Schriften 1 Jahr
 - Security-Header: CSP (nur `'self'`), `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`,
   `Permissions-Policy`, `Cross-Origin-Opener-Policy`
+- `X-Robots-Tag: noindex, follow` für alle Antworten
 - eigene 404-Seite, auch für Verzeichnisse ohne Index; versteckte Dateien werden nicht ausgeliefert
 - Zugriffsprotokoll mit gekürzter IP-Adresse und ohne Query-String
 - `POST /kontakt/` (Formular ohne JavaScript) wird nicht verarbeitet, sondern per 303 zurück zum Formular geleitet

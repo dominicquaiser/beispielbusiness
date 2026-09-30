@@ -42,6 +42,21 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: "Roboto Mono";
+  src: url("../fonts/roboto-mono-latin-400-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Roboto Mono";
+  src: url("../fonts/roboto-mono-latin-600-normal.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* Variablen
    ------------------------------------------------------------------------ */
 :root {
@@ -70,6 +85,14 @@
 
   --font-body: "Barlow", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   --font-head: "Barlow Semi Condensed", "Barlow", "Arial Narrow", Arial, sans-serif;
+  --font-mono: "Roboto Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  /* Anbieter-Leiste im Design von Krake */
+  --krake-bg: #0f1113;
+  --krake-text: #ffffff;
+  --krake-grey: #cccccc;
+  --krake-accent: #ff6a00;
+  --krake-border: rgba(255, 255, 255, 0.08);
 
   --container: 1200px;
   --gutter: 1rem;
@@ -2313,24 +2336,86 @@ table.spec thead code {
   margin: 0;
 }
 
-.footer-note {
-  padding: 0 0 1.6rem;
+/* Anbieter-Leiste (echte Angaben, Krake-Design) */
+.operator-bar {
+  background: var(--krake-bg);
+  border-top: 2px solid var(--krake-accent);
+  color: var(--krake-grey);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  line-height: 1.75;
+}
+
+.operator-inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.45fr) minmax(0, 1fr);
+  gap: 2.5rem;
+  padding-top: 2.25rem;
+  padding-bottom: 2.25rem;
+}
+
+.operator-col + .operator-col {
+  padding-left: 2.5rem;
+  border-left: 1px solid var(--krake-border);
+}
+
+.site-footer .operator-label {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0 0 0.8rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--krake-accent);
+}
+
+.operator-bar .operator-sub {
+  margin: -0.5rem 0 0.6rem;
   font-size: 0.8rem;
-  color: #7f92a5;
+  color: var(--krake-grey);
+  opacity: 0.75;
 }
 
-.footer-note p {
-  margin: 0;
+.operator-mark {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
 }
 
-.site-footer .footer-note a {
-  color: #aebccb;
+.operator-bar address {
+  color: var(--krake-text);
+}
+
+.operator-bar p {
+  margin: 0 0 0.5rem;
+}
+
+.operator-bar p:last-child {
+  margin-bottom: 0;
+}
+
+.site-footer .operator-bar a {
+  color: var(--krake-text);
   text-decoration: underline;
-  text-decoration-color: rgba(174, 188, 203, 0.45);
+  text-decoration-color: var(--krake-accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
 }
 
-.site-footer .footer-note a:hover {
-  color: var(--white);
+.site-footer .operator-bar a:hover {
+  color: var(--krake-accent);
+}
+
+.site-footer .operator-bar a:focus-visible {
+  outline-color: var(--krake-accent);
+}
+
+.operator-link {
+  font-weight: 600;
 }
 
 /* Responsive
@@ -2514,6 +2599,20 @@ table.spec thead code {
   .person-body {
     grid-template-columns: minmax(0, 1fr);
     gap: 0.5rem;
+  }
+}
+
+@media (max-width: 900px) {
+  .operator-inner {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.5rem;
+  }
+
+  .operator-col + .operator-col {
+    padding-top: 1.5rem;
+    padding-left: 0;
+    border-left: 0;
+    border-top: 1px solid var(--krake-border);
   }
 }
 
@@ -2758,8 +2857,15 @@ table.spec thead code {
     color: #000;
   }
 
-  .site-footer a {
+  .site-footer a,
+  .operator-bar,
+  .operator-bar address,
+  .site-footer .operator-bar a {
     color: #000;
+  }
+
+  .operator-bar {
+    background: none;
   }
 
   a[href^="http"]::after {
