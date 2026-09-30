@@ -1,0 +1,5 @@
+# robots.txt – beispielbusiness.de
+User-agent: *
+Allow: /
+
+Sitemap: https://beispielbusiness.de/sitemap.xml

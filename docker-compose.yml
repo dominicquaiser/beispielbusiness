@@ -1,0 +1,21 @@
+services:
+  web:
+    build: .
+    image: beispielbusiness-web:latest
+    container_name: beispielbusiness-web
+    restart: unless-stopped
+    ports:
+      # Host-Port über HTTP_PORT anpassbar, z. B. HTTP_PORT=80 docker compose up -d
+      - "${HTTP_PORT:-8080}:80"
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
