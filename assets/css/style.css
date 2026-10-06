@@ -13,6 +13,7 @@
   font-style: normal;
   font-display: swap;
 }
+
 @font-face {
   font-family: "Barlow";
   src: url("../fonts/barlow-latin-500-normal.woff2") format("woff2");
@@ -20,6 +21,7 @@
   font-style: normal;
   font-display: swap;
 }
+
 @font-face {
   font-family: "Barlow";
   src: url("../fonts/barlow-latin-600-normal.woff2") format("woff2");
@@ -27,6 +29,7 @@
   font-style: normal;
   font-display: swap;
 }
+
 @font-face {
   font-family: "Barlow Semi Condensed";
   src: url("../fonts/barlow-semi-condensed-latin-600-normal.woff2") format("woff2");
@@ -34,6 +37,7 @@
   font-style: normal;
   font-display: swap;
 }
+
 @font-face {
   font-family: "Barlow Semi Condensed";
   src: url("../fonts/barlow-semi-condensed-latin-700-normal.woff2") format("woff2");
@@ -49,6 +53,7 @@
   font-style: normal;
   font-display: swap;
 }
+
 @font-face {
   font-family: "Roboto Mono";
   src: url("../fonts/roboto-mono-latin-600-normal.woff2") format("woff2");
@@ -188,7 +193,7 @@ ol {
   padding-left: 1.2em;
 }
 
-li + li {
+li+li {
   margin-top: 0.3em;
 }
 
@@ -690,7 +695,7 @@ hr {
   margin: 0;
 }
 
-.nav-list > li > a {
+.nav-list>li>a {
   display: block;
   padding: 0.55rem 0.75rem;
   font-family: var(--font-head);
@@ -896,7 +901,7 @@ hr {
   border: 1px solid var(--grey-200);
 }
 
-.card > :last-child {
+.card> :last-child {
   margin-bottom: 0;
 }
 
@@ -1248,7 +1253,7 @@ hr {
   overflow-wrap: anywhere;
 }
 
-.aside-box + .aside-box {
+.aside-box+.aside-box {
   margin-top: 1.5rem;
 }
 
@@ -1316,7 +1321,7 @@ blockquote footer {
   color: var(--muted);
 }
 
-.breadcrumb li + li::before {
+.breadcrumb li+li::before {
   content: "/";
   margin: 0 0.55rem;
   color: var(--grey-400);
@@ -1683,11 +1688,11 @@ table.spec thead code {
   overflow-wrap: anywhere;
 }
 
-.team-group + .team-group {
+.team-group+.team-group {
   margin-top: 4rem;
 }
 
-.team-group > h2 {
+.team-group>h2 {
   font-size: 1.5rem;
   margin-bottom: 0.5rem;
 }
@@ -1801,7 +1806,7 @@ table.spec thead code {
   border-top: 3px solid var(--navy-700);
 }
 
-.job + .job {
+.job+.job {
   margin-top: 2rem;
 }
 
@@ -2016,7 +2021,7 @@ table.spec thead code {
   background: var(--copper-dark);
 }
 
-.cta-person > div {
+.cta-person>div {
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -2305,7 +2310,7 @@ table.spec thead code {
   list-style: none;
 }
 
-.footer-links li + li {
+.footer-links li+li {
   margin-top: 0.45rem;
 }
 
@@ -2339,7 +2344,6 @@ table.spec thead code {
 /* Anbieter-Leiste (echte Angaben, Krake-Design) */
 .operator-bar {
   background: var(--krake-bg);
-  border-top: 2px solid var(--krake-accent);
   color: var(--krake-grey);
   font-family: var(--font-mono);
   font-size: 0.875rem;
@@ -2354,7 +2358,7 @@ table.spec thead code {
   padding-bottom: 2.25rem;
 }
 
-.operator-col + .operator-col {
+.operator-col+.operator-col {
   padding-left: 2.5rem;
   border-left: 1px solid var(--krake-border);
 }
@@ -2415,6 +2419,7 @@ table.spec thead code {
 }
 
 .operator-link {
+  color: var(--krake-accent);
   font-weight: 600;
 }
 
@@ -2447,7 +2452,7 @@ table.spec thead code {
     border-top: 1px solid var(--grey-200);
   }
 
-  .nav-list > li > a {
+  .nav-list>li>a {
     padding: 0.55rem 0.55rem;
   }
 }
@@ -2474,11 +2479,11 @@ table.spec thead code {
     align-items: stretch;
   }
 
-  .nav-list > li {
+  .nav-list>li {
     border-top: 1px solid var(--grey-200);
   }
 
-  .nav-list > li > a {
+  .nav-list>li>a {
     padding: 0.85rem 0.25rem;
     font-size: 1.12rem;
   }
@@ -2608,7 +2613,7 @@ table.spec thead code {
     gap: 1.5rem;
   }
 
-  .operator-col + .operator-col {
+  .operator-col+.operator-col {
     padding-top: 1.5rem;
     padding-left: 0;
     border-left: 0;
@@ -2824,6 +2829,7 @@ table.spec thead code {
 /* Druck
    ------------------------------------------------------------------------ */
 @media print {
+
   .topbar,
   .site-nav,
   .nav-toggle,

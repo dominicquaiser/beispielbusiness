@@ -6,7 +6,7 @@ services:
     restart: unless-stopped
     ports:
       # Host-Port über HTTP_PORT anpassbar, z. B. HTTP_PORT=80 docker compose up -d
-      - "${HTTP_PORT:-8080}:80"
+      - "${HTTP_PORT:-8180}:80"
     read_only: true
     tmpfs:
       - /var/cache/nginx
