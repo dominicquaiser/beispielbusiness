@@ -8,9 +8,10 @@ Alle Unternehmens-, Personen-, Produkt- und Kontaktdaten sind frei erfunden. Ech
 Anbieter der Website: Sie stehen auf jeder Seite in einer eigenen Leiste unten im Footer (Krake-Design). Die
 ausführliche Kennzeichnung als Sandbox steht im Impressum.
 
-- Nur HTML, CSS und Vanilla JavaScript – keine Frameworks, kein Build-Schritt
-- Alle Inhalte stehen im initialen HTML; JavaScript ergänzt nur mobile Navigation, FAQ-Anker und Formularprüfung
-- Keine Cookies, kein Tracking, keine externen Ressourcen (Schriften lokal)
+- Frontend aus HTML, CSS und Vanilla JavaScript ohne Build-Schritt; kleiner Python-Dienst für den Zähler
+- Alle redaktionellen Inhalte stehen im initialen HTML; JavaScript ergänzt Navigation, FAQ-Anker, Formularprüfung und den Seitenaufrufzähler
+- Keine Cookies, keine Besucherkennungen und keine externen Ressourcen (Schriften lokal)
+- Anonymer, persistenter Gesamtzähler für Seitenaufrufe; es werden keine IP-Adressen oder einzelnen Besuche gespeichert
 - Nicht in Suchmaschinen-Indizes: `<meta name="robots" content="noindex, follow">` auf jeder Seite und
   `X-Robots-Tag: noindex, follow` für alle Antworten. Crawling bleibt erlaubt (`robots.txt`), Scraper sind nicht betroffen
 
@@ -20,31 +21,83 @@ ausführliche Kennzeichnung als Sandbox steht im Impressum.
 docker compose up -d
 ```
 
-Die Website ist danach unter <http://localhost:8080> erreichbar. Den Host-Port legt `HTTP_PORT` fest:
+Die Website ist danach unter <http://127.0.0.1:18180> erreichbar. Der Port ist nur an das Loopback-Interface gebunden; er ist nicht direkt aus dem Internet erreichbar. Den Host-Port legt `HTTP_PORT` fest:
 
 ```bash
-HTTP_PORT=80 docker compose up -d
+HTTP_PORT=18181 docker compose up -d
 ```
 
-Stoppen: `docker compose down`. Nach Änderungen an Inhalten neu bauen: `docker compose up -d --build`.
+Stoppen: `docker compose down`. Nach Änderungen an Inhalten neu bauen: `docker compose up -d --build`. Der Zählerstand liegt im Docker-Volume `pageviews` und bleibt bei `down` und Neu-Builds erhalten. `docker compose down -v` würde ihn löschen.
 
-## Deployment unter beispielbusiness.de
+## Deployment auf einem VPS mit bestehendem Nginx
 
-Der Container spricht nur HTTP. TLS übernimmt ein vorgeschalteter Reverse Proxy, zum Beispiel Caddy:
+Die Container und der Nginx auf dem VPS haben getrennte Konfigurationen. Der Web-Container belegt standardmäßig ausschließlich `127.0.0.1:18180`; der Zählerdienst hat gar keinen veröffentlichten Host-Port. Der vorhandene Nginx behält die öffentlichen Ports 80 und 443 und bekommt nur einen zusätzlichen Virtual Host für `beispielbusiness.de` und `www.beispielbusiness.de`. Andere Services oder deren Konfigurationen müssen dafür nicht geändert werden.
 
-```caddyfile
-beispielbusiness.de, www.beispielbusiness.de {
-    reverse_proxy 127.0.0.1:8080
-}
+Die folgenden Schritte gelten für einen VPS mit Docker Compose, Nginx und Certbot. Die DNS-Einträge beider Namen müssen auf den VPS zeigen. In der Firewall müssen 80/TCP für die Zertifikatsprüfung und HTTP-Weiterleitung sowie 443/TCP für HTTPS erreichbar sein. Port 18180 bleibt lokal und braucht keine Freigabe in der Firewall. Vorher auf dem VPS prüfen, ob Port 18180 frei ist und ob der bestehende Nginx einen der beiden Namen bereits verwendet:
+
+```bash
+sudo ss -ltnp | grep ':18180 ' || true
+sudo nginx -T 2>&1 | grep -n 'server_name .*beispielbusiness\.de' || true
 ```
 
-Anfragen an `www.beispielbusiness.de` leitet nginx per 301 auf `https://beispielbusiness.de` um. Sobald die Domain
-dauerhaft per HTTPS läuft, kann in `nginx.conf` der vorbereitete HSTS-Header aktiviert werden.
+Falls 18180 belegt ist, beispielsweise `HTTP_PORT=18181` für Compose setzen **und** in beiden Dateien unter `deploy/nginx/` den Port in `proxy_pass` auf 18181 ändern. Den Port im anschließenden `curl`-Aufruf ebenfalls anpassen. Wenn einer der Domainnamen bereits in einer anderen Nginx-Konfiguration steht, den Konflikt dort zuerst klären; doppelte `server_name`-Einträge können dazu führen, dass der neue Virtual Host nicht verwendet wird.
+
+Im Projektverzeichnis den Container starten und lokal prüfen:
+
+```bash
+docker compose up -d --build
+curl -I -H 'Host: beispielbusiness.de' http://127.0.0.1:18180/
+```
+
+Für die HTTP-Challenge von Let's Encrypt einen Webroot anlegen und zunächst die Startkonfiguration installieren. Sie ist eine **eigene** Datei im bestehenden Nginx und ersetzt keine anderen Virtual Hosts:
+
+```bash
+sudo mkdir -p /var/www/letsencrypt/.well-known/acme-challenge
+sudo cp deploy/nginx/beispielbusiness.bootstrap.conf /etc/nginx/conf.d/beispielbusiness.conf
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot certonly --webroot -w /var/www/letsencrypt \
+  --cert-name beispielbusiness.de \
+  -d beispielbusiness.de -d www.beispielbusiness.de
+```
+
+Danach die HTTPS-Konfiguration einsetzen. Sie verwendet das gerade ausgestellte Zertifikat, leitet HTTP und `www` auf `https://beispielbusiness.de` weiter und leitet die Seite intern an den Container:
+
+```bash
+sudo cp deploy/nginx/beispielbusiness.https.conf /etc/nginx/conf.d/beispielbusiness.conf
+sudo nginx -t && sudo systemctl reload nginx
+curl -I https://beispielbusiness.de/
+```
+
+Falls der HTTPS-Test direkt nach dem Reload noch einen TLS-Fehler meldet, den Aufruf nach einigen Sekunden wiederholen. Die Meldung `ssl_stapling ignored, no OCSP responder URL` ist bei aktuellen Let's-Encrypt-Zertifikaten kein Zertifikatsfehler; für diesen Virtual Host ist OCSP-Stapling daher deaktiviert. Warnungen zu anderen Domains stammen aus deren eigenen Nginx-Konfigurationen.
+
+Certbot muss bei der automatischen Erneuerung den Nginx neu laden, damit das neue Zertifikat aktiv wird. Dafür kann `deploy/nginx/reload-after-renewal.sh` als Deploy-Hook installiert und die Erneuerung geprüft werden:
+
+```bash
+sudo install -d /etc/letsencrypt/renewal-hooks/deploy
+sudo install -m 755 deploy/nginx/reload-after-renewal.sh \
+  /etc/letsencrypt/renewal-hooks/deploy/beispielbusiness-reload-nginx.sh
+sudo certbot renew --dry-run
+```
+
+Der Hook läuft nur nach einer erfolgreichen Zertifikatserneuerung. Der Webroot für die HTTP-Challenge bleibt auch in der HTTPS-Konfiguration erreichbar. Bei späteren Änderungen an der Website genügt `docker compose up -d --build`; der Nginx auf dem VPS muss dafür nicht neu geladen werden.
+
+### Update für den Seitenaufrufzähler
+
+Beim Upgrade einer bereits laufenden Installation zuerst die aktualisierte HTTPS-Konfiguration auf dem VPS installieren. Sie deaktiviert Zugriffs- und Fehlerprotokolle **nur für diese Domain**. Danach die Container mit dem neuen Zählerdienst bauen und starten:
+
+```bash
+sudo cp deploy/nginx/beispielbusiness.https.conf /etc/nginx/conf.d/beispielbusiness.conf
+sudo nginx -t && sudo systemctl reload nginx
+docker compose up -d --build
+curl -i -X POST -H 'X-Pageview: 1' https://beispielbusiness.de/api/pageviews
+```
+
+Der letzte Aufruf erhöht den Zähler um eins und liefert zum Beispiel `{"pageviews":1}`. Beim Laden einer Seite mit JavaScript wird der Gesamtstand in der Betreiberleiste angezeigt; ohne JavaScript wird nichts gezählt oder eingeblendet. Der Dienst speichert nur den Gesamtwert in SQLite. Er schreibt keine Anfrageprotokolle, und die Web-Container protokollieren keine IP-Adressen. Die Zahl ist kein manipulationssicheres Maß für unterschiedliche Besucher: Auch wiederholte oder absichtlich gesendete Aufrufe erhöhen sie. Falls eine vorgeschaltete Firewall oder ein weiterer Proxy eigene Zugriffsprotokolle schreibt, deren Einstellungen vor Veröffentlichung der angepassten Datenschutzerklärung gesondert prüfen. Auf diesem VPS bleiben die öffentlichen Firewall-Freigaben unverändert: 80/TCP und 443/TCP; der Zähler benötigt keinen neuen Port.
 
 **Rechtliches:** Die echten Anbieterangaben nach § 5 DDG (Dominic M. Quaiser, Chemnitz) stehen in der Leiste
 „Anbieter dieser Website“ am Ende jeder Seite (Anker `#anbieter`). Im Impressum heißen die erfundenen Firmendaten
 „Fiktive Unternehmensangaben (Testdaten)“ und sind ausdrücklich keine Anbieterangaben. Die Datenschutzerklärung nennt
-den echten Verantwortlichen. Sie gibt eine Log-Aufbewahrung von höchstens 14 Tagen an; das muss zum Hosting passen.
+den echten Verantwortlichen und beschreibt den anonymen Seitenaufrufzähler. Die Aussagen zu deaktivierten Protokollen müssen zur Konfiguration aller vorgeschalteten Systeme passen.
 
 ## Aufbau
 
@@ -68,6 +121,8 @@ den echten Verantwortlichen. Sie gibt eine Log-Aufbewahrung von höchstens 14 Ta
 ├── assets/js/main.js
 ├── assets/img/                     Logo, Favicons, Open-Graph-Bild, Produktzeichnung (SVG)
 ├── assets/fonts/                   Barlow / Barlow Semi Condensed (OFL.txt), Roboto Mono (OFL-RobotoMono.txt), SIL OFL 1.1
+├── counter/                         Zählerdienst mit SQLite (nur im Docker-Netz erreichbar)
+├── deploy/nginx/                    separater VPS-Virtual-Host und Certbot-Hook
 ├── Dockerfile, docker-compose.yml, nginx.conf
 ```
 
@@ -82,7 +137,8 @@ den echten Verantwortlichen. Sie gibt eine Log-Aufbewahrung von höchstens 14 Ta
   `Permissions-Policy`, `Cross-Origin-Opener-Policy`
 - `X-Robots-Tag: noindex, follow` für alle Antworten
 - eigene 404-Seite, auch für Verzeichnisse ohne Index; versteckte Dateien werden nicht ausgeliefert
-- Zugriffsprotokoll mit gekürzter IP-Adresse und ohne Query-String
+- Zugriffs- und Fehlerprotokolle für diese Website deaktiviert
+- `POST /api/pageviews` leitet an den internen Zählerdienst weiter
 - `POST /kontakt/` (Formular ohne JavaScript) wird nicht verarbeitet, sondern per 303 zurück zum Formular geleitet
 - `/healthz` für den Docker-Healthcheck
 - Container läuft mit schreibgeschütztem Dateisystem (`read_only`) und `no-new-privileges`

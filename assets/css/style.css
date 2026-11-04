@@ -1,11 +1,4 @@
-/* ==========================================================================
-   Beispielbusiness GmbH – Stylesheet
-   Aufbau: Schriften · Variablen · Basis · Layout · Header/Navigation ·
-           Komponenten · Seitenspezifisches · Footer · Responsive · Druck
-   ========================================================================== */
-
-/* Schriften (lokal gehostet, SIL Open Font License, siehe assets/fonts/OFL.txt)
-   ------------------------------------------------------------------------ */
+/* Schriften */
 @font-face {
   font-family: "Barlow";
   src: url("../fonts/barlow-latin-400-normal.woff2") format("woff2");
@@ -62,8 +55,7 @@
   font-display: swap;
 }
 
-/* Variablen
-   ------------------------------------------------------------------------ */
+/* Variablen */
 :root {
   --navy-950: #0a1a2b;
   --navy-900: #0d2137;
@@ -106,8 +98,7 @@
   --shadow: 0 10px 30px rgba(13, 33, 55, 0.08);
 }
 
-/* Basis
-   ------------------------------------------------------------------------ */
+/* Basis */
 *,
 *::before,
 *::after {
@@ -239,8 +230,7 @@ hr {
   color: var(--white);
 }
 
-/* Layout
-   ------------------------------------------------------------------------ */
+/* Layout */
 .container {
   width: 100%;
   max-width: calc(var(--container) + 2 * var(--gutter));
@@ -342,8 +332,7 @@ hr {
   margin-top: 0;
 }
 
-/* Typografische Elemente
-   ------------------------------------------------------------------------ */
+/* Typografische Elemente */
 .kicker {
   display: flex;
   align-items: center;
@@ -482,8 +471,7 @@ hr {
   background: var(--navy-600);
 }
 
-/* Buttons
-   ------------------------------------------------------------------------ */
+/* Buttons */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -575,8 +563,7 @@ hr {
   margin-top: 1.75rem;
 }
 
-/* Topbar & Header
-   ------------------------------------------------------------------------ */
+/* Topbar & Header */
 .topbar {
   background: var(--navy-950);
   color: #aebccb;
@@ -817,8 +804,7 @@ hr {
   transform: translateY(-6px) rotate(-45deg);
 }
 
-/* Hero
-   ------------------------------------------------------------------------ */
+/* Hero */
 .hero {
   padding: 4.5rem 0 4rem;
   background: var(--grey-100);
@@ -890,8 +876,7 @@ hr {
   color: var(--muted);
 }
 
-/* Karten
-   ------------------------------------------------------------------------ */
+/* Karten */
 .card {
   position: relative;
   display: flex;
@@ -1286,8 +1271,7 @@ blockquote footer {
   color: var(--muted);
 }
 
-/* Seitenkopf & Breadcrumb
-   ------------------------------------------------------------------------ */
+/* Seitenkopf & Breadcrumb */
 .page-header {
   padding: 2.25rem 0 3rem;
   background: var(--grey-100);
@@ -1381,8 +1365,7 @@ blockquote footer {
   box-shadow: inset 0 -2px 0 var(--navy-700);
 }
 
-/* Produktseite
-   ------------------------------------------------------------------------ */
+/* Produktseite */
 .product-hero {
   padding: 2.25rem 0 4rem;
   background: var(--grey-100);
@@ -2041,8 +2024,7 @@ table.spec thead code {
   margin-top: 1.25rem;
 }
 
-/* Kontakt & Formular
-   ------------------------------------------------------------------------ */
+/* Kontakt & Formular */
 .contact-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
@@ -2258,8 +2240,7 @@ table.spec thead code {
   margin: 0 0 1rem;
 }
 
-/* Footer
-   ------------------------------------------------------------------------ */
+/* Footer */
 .site-footer {
   background: var(--navy-950);
   color: #aebccb;
@@ -2341,7 +2322,6 @@ table.spec thead code {
   margin: 0;
 }
 
-/* Anbieter-Leiste (echte Angaben, Krake-Design) */
 .operator-bar {
   background: var(--krake-bg);
   color: var(--krake-grey);
@@ -2423,8 +2403,15 @@ table.spec thead code {
   font-weight: 600;
 }
 
-/* Responsive
-   ------------------------------------------------------------------------ */
+.operator-bar .operator-pageviews {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--krake-border);
+  color: var(--krake-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Responsive */
 @media (min-width: 720px) {
   :root {
     --gutter: 1.5rem;
@@ -2517,7 +2504,7 @@ table.spec thead code {
     width: 100%;
   }
 
-  /* Navigation als ausklappbares Menü (ohne JavaScript: assets/css/noscript.css) */
+  /* Navigation als ausklappbares Menü */
   .nav-toggle {
     display: inline-flex;
   }
@@ -2826,8 +2813,7 @@ table.spec thead code {
   }
 }
 
-/* Druck
-   ------------------------------------------------------------------------ */
+/* Druck */
 @media print {
 
   .topbar,

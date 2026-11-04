@@ -2,16 +2,15 @@
  * Beispielbusiness GmbH – kleine UI-Funktionen
  * - mobile Navigation
  * - Formularvalidierung Kontaktformular (reine Frontend-Prüfung, kein Versand)
- * Alle Inhalte der Website stehen im initialen HTML; dieses Skript ergänzt nur Bedienkomfort.
+ * - anonymer Gesamtzähler für Seitenaufrufe in der Betreiberleiste
+ * Alle redaktionellen Inhalte stehen im initialen HTML.
  */
 (function () {
   "use strict";
 
   document.documentElement.classList.add("js");
 
-  /* ---------------------------------------------------------------------
-   * Mobile Navigation
-   * ------------------------------------------------------------------- */
+  /* Mobile Navigation */
   var toggle = document.querySelector(".nav-toggle");
   var nav = document.getElementById("hauptnavigation");
 
@@ -58,9 +57,7 @@
     }
   }
 
-  /* ---------------------------------------------------------------------
-   * FAQ: Anker-Links öffnen die passende Frage
-   * ------------------------------------------------------------------- */
+  /* FAQ: Anker-Links öffnen die passende Frage */
   function openDetailsFromHash() {
     if (!window.location.hash) {
       return;
@@ -73,9 +70,34 @@
   openDetailsFromHash();
   window.addEventListener("hashchange", openDetailsFromHash);
 
-  /* ---------------------------------------------------------------------
-   * Kontaktformular
-   * ------------------------------------------------------------------- */
+  /* Seitenaufrufe: eine Anfrage pro geladener Seite, ohne Cookies oder Kennungen. */
+  var operatorNotice = document.querySelector('.operator-bar .operator-col[aria-labelledby="hinweis-titel"]');
+  if (operatorNotice && window.fetch) {
+    window.fetch("/api/pageviews", {
+      method: "POST",
+      credentials: "omit",
+      cache: "no-store",
+      referrerPolicy: "no-referrer",
+      headers: { "X-Pageview": "1" }
+    }).then(function (response) {
+      if (!response.ok) {
+        throw new Error("Counter unavailable");
+      }
+      return response.json();
+    }).then(function (data) {
+      if (!Number.isSafeInteger(data.pageviews) || data.pageviews < 0) {
+        return;
+      }
+      var line = document.createElement("p");
+      line.className = "operator-pageviews";
+      line.textContent = "Seitenaufrufe gesamt: " + data.pageviews.toLocaleString("de-DE");
+      operatorNotice.appendChild(line);
+    }).catch(function () {
+      // Die Website bleibt auch ohne Zähler vollständig nutzbar.
+    });
+  }
+
+  /* Kontaktformular */
   var form = document.getElementById("kontaktformular");
   if (!form) {
     return;
