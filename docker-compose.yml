@@ -1,0 +1,52 @@
+services:
+  web:
+    build: .
+    image: beispielbusiness-web:latest
+    container_name: beispielbusiness-web
+    restart: unless-stopped
+    ports:
+      # Nur für den lokalen Reverse Proxy erreichbar; bei Bedarf HTTP_PORT anpassen.
+      - "127.0.0.1:${HTTP_PORT:-18180}:80"
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+    volumes:
+      # Socket des Zählerdienstes; darüber meldet nginx jede Anfrage.
+      - counter-socket:/sockets:ro
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  counter:
+    build: ./counter
+    image: beispielbusiness-counter:latest
+    container_name: beispielbusiness-counter
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    volumes:
+      - pageviews:/data
+      - counter-socket:/sockets
+    sysctls:
+      # Warteschlange des Sockets (Standard: 10 Meldungen), damit bei Lastspitzen keine verloren gehen.
+      - net.unix.max_dgram_qlen=1024
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  pageviews:
+  counter-socket:

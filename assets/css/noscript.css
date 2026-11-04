@@ -1,0 +1,15 @@
+/* Nur ohne JavaScript geladen: Navigation auf kleinen Bildschirmen dauerhaft einblenden. */
+@media (max-width: 1020px) {
+  .nav-toggle {
+    display: none;
+  }
+
+  .site-nav {
+    position: static;
+    display: flex;
+    max-height: none;
+    padding: 0 0 1rem;
+    border: 0;
+    box-shadow: none;
+  }
+}

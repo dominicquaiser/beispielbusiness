@@ -1,1 +1,256 @@
-# beispielbusiness
+# beispielbusiness.de
+
+Statische Website der **fiktiven** Beispielbusiness GmbH – einem erfundenen Hersteller von Präzisionskomponenten
+und modularer Spanntechnik. Die Website dient als öffentlich zugängliche Test- und Scraping-Sandbox für
+Web-Scraping, Company-Data-Enrichment und Datenaggregation.
+
+Alle Unternehmens-, Personen-, Produkt- und Kontaktdaten sind frei erfunden. Echt sind nur die Angaben zum
+Anbieter der Website: Sie stehen auf jeder Seite in einer eigenen Leiste unten im Footer (Krake-Design). Die
+ausführliche Kennzeichnung als Sandbox steht im Impressum.
+
+- Frontend aus HTML, CSS und Vanilla JavaScript ohne Build-Schritt; kleiner Python-Dienst für den Zähler
+- Alle redaktionellen Inhalte stehen im initialen HTML; JavaScript ergänzt Navigation, FAQ-Anker, Formularprüfung und die Anzeige des Anfragezählers
+- Keine Cookies, keine Besucherkennungen und keine externen Ressourcen (Schriften lokal)
+- Anonymer, persistenter Gesamtzähler für alle HTTP-Anfragen; es werden keine IP-Adressen oder einzelnen Anfragen gespeichert
+- Nicht in Suchmaschinen-Indizes: `<meta name="robots" content="noindex, follow">` auf jeder Seite und
+  `X-Robots-Tag: noindex, follow` für alle Antworten. Crawling bleibt erlaubt (`robots.txt`), Scraper sind nicht betroffen
+
+## Start
+
+```bash
+docker compose up -d
+```
+
+Die Website ist danach unter <http://127.0.0.1:18180> erreichbar. Der Port ist nur an das Loopback-Interface gebunden; er ist nicht direkt aus dem Internet erreichbar. Den Host-Port legt `HTTP_PORT` fest:
+
+```bash
+HTTP_PORT=18181 docker compose up -d
+```
+
+Stoppen: `docker compose down`. Nach Änderungen an Inhalten neu bauen: `docker compose up -d --build`. Der Zählerstand liegt im Docker-Volume `pageviews` und bleibt bei `down` und Neu-Builds erhalten. `docker compose down -v` würde ihn löschen.
+
+## Deployment auf einem VPS mit bestehendem Nginx
+
+Die Container und der Nginx auf dem VPS haben getrennte Konfigurationen. Der Web-Container belegt standardmäßig ausschließlich `127.0.0.1:18180`; der Zählerdienst hat gar keinen veröffentlichten Host-Port. Der vorhandene Nginx behält die öffentlichen Ports 80 und 443 und bekommt nur einen zusätzlichen Virtual Host für `beispielbusiness.de` und `www.beispielbusiness.de`. Andere Services oder deren Konfigurationen müssen dafür nicht geändert werden.
+
+Die folgenden Schritte gelten für einen VPS mit Docker Compose, Nginx und Certbot. Die DNS-Einträge beider Namen müssen auf den VPS zeigen. In der Firewall müssen 80/TCP für die Zertifikatsprüfung und HTTP-Weiterleitung sowie 443/TCP für HTTPS erreichbar sein. Port 18180 bleibt lokal und braucht keine Freigabe in der Firewall. Vorher auf dem VPS prüfen, ob Port 18180 frei ist und ob der bestehende Nginx einen der beiden Namen bereits verwendet:
+
+```bash
+sudo ss -ltnp | grep ':18180 ' || true
+sudo nginx -T 2>&1 | grep -n 'server_name .*beispielbusiness\.de' || true
+```
+
+Falls 18180 belegt ist, beispielsweise `HTTP_PORT=18181` für Compose setzen **und** in beiden Dateien unter `deploy/nginx/` den Port in `proxy_pass` auf 18181 ändern. Den Port im anschließenden `curl`-Aufruf ebenfalls anpassen. Wenn einer der Domainnamen bereits in einer anderen Nginx-Konfiguration steht, den Konflikt dort zuerst klären; doppelte `server_name`-Einträge können dazu führen, dass der neue Virtual Host nicht verwendet wird.
+
+Im Projektverzeichnis den Container starten und lokal prüfen:
+
+```bash
+docker compose up -d --build
+curl -I -H 'Host: beispielbusiness.de' http://127.0.0.1:18180/
+```
+
+Für die HTTP-Challenge von Let's Encrypt einen Webroot anlegen und zunächst die Startkonfiguration installieren. Sie ist eine **eigene** Datei im bestehenden Nginx und ersetzt keine anderen Virtual Hosts:
+
+```bash
+sudo mkdir -p /var/www/letsencrypt/.well-known/acme-challenge
+sudo cp deploy/nginx/beispielbusiness.bootstrap.conf /etc/nginx/conf.d/beispielbusiness.conf
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot certonly --webroot -w /var/www/letsencrypt \
+  --cert-name beispielbusiness.de \
+  -d beispielbusiness.de -d www.beispielbusiness.de
+```
+
+Danach die HTTPS-Konfiguration einsetzen. Sie verwendet das gerade ausgestellte Zertifikat, leitet HTTP und `www` auf `https://beispielbusiness.de` weiter und leitet die Seite intern an den Container:
+
+```bash
+sudo cp deploy/nginx/beispielbusiness.https.conf /etc/nginx/conf.d/beispielbusiness.conf
+sudo nginx -t && sudo systemctl reload nginx
+curl -I https://beispielbusiness.de/
+```
+
+Falls der HTTPS-Test direkt nach dem Reload noch einen TLS-Fehler meldet, den Aufruf nach einigen Sekunden wiederholen. Die Meldung `ssl_stapling ignored, no OCSP responder URL` ist bei aktuellen Let's-Encrypt-Zertifikaten kein Zertifikatsfehler; für diesen Virtual Host ist OCSP-Stapling daher deaktiviert. Warnungen zu anderen Domains stammen aus deren eigenen Nginx-Konfigurationen.
+
+Certbot muss bei der automatischen Erneuerung den Nginx neu laden, damit das neue Zertifikat aktiv wird. Dafür kann `deploy/nginx/reload-after-renewal.sh` als Deploy-Hook installiert und die Erneuerung geprüft werden:
+
+```bash
+sudo install -d /etc/letsencrypt/renewal-hooks/deploy
+sudo install -m 755 deploy/nginx/reload-after-renewal.sh \
+  /etc/letsencrypt/renewal-hooks/deploy/beispielbusiness-reload-nginx.sh
+sudo certbot renew --dry-run
+```
+
+Der Hook läuft nur nach einer erfolgreichen Zertifikatserneuerung. Der Webroot für die HTTP-Challenge bleibt auch in der HTTPS-Konfiguration erreichbar. Bei späteren Änderungen an der Website genügt `docker compose up -d --build`; der Nginx auf dem VPS muss dafür nicht neu geladen werden.
+
+### Update für den Anfragezähler
+
+Beim Upgrade einer Installation ohne Zähler zuerst die aktualisierte HTTPS-Konfiguration auf dem VPS installieren; sie deaktiviert Zugriffs- und Fehlerprotokolle **nur für diese Domain**. Danach die Container mit dem neuen Zählerdienst bauen und starten. Läuft bereits der bisherige Seitenaufrufzähler, ist die HTTPS-Konfiguration schon installiert, und die letzten beiden Befehle genügen:
+
+```bash
+sudo cp deploy/nginx/beispielbusiness.https.conf /etc/nginx/conf.d/beispielbusiness.conf
+sudo nginx -t && sudo systemctl reload nginx
+docker compose up -d --build
+curl -s https://beispielbusiness.de/api/requests
+```
+
+Der letzte Aufruf liefert zum Beispiel `{"requests": 42}`. Ein zweiter Aufruf zeigt mindestens eins mehr, denn auch die Abfrage selbst wird gezählt. Gezählt wird jede HTTP-Anfrage, die der Web-Container beantwortet: Seiten, CSS, JavaScript, Schriften, Bilder, Weiterleitungen und Fehlerseiten, unabhängig davon, ob der Client JavaScript ausführt. Ausgenommen sind der Docker-Healthcheck `/healthz` und Anfragen, die der Nginx auf dem VPS selbst beantwortet, ohne sie an den Container weiterzuleiten, also die Weiterleitungen von HTTP auf HTTPS und von `www` sowie die ACME-Challenges. Der neue Zähler beginnt bei 0; der Stand des bisherigen Seitenaufrufzählers bleibt in der Datenbank erhalten, wird aber nicht mehr angezeigt.
+
+nginx meldet jede Anfrage über einen Unix-Socket im Volume `counter-socket` an den Zählerdienst, und zwar als festen Text im Syslog-Format. Außer der Uhrzeit im Syslog-Kopf, die der Dienst verwirft, enthält die Meldung keine Angaben wie IP-Adresse oder Pfad. Der Dienst zählt im Speicher, schreibt den Stand jede Sekunde und beim Beenden in SQLite und liefert ihn für die Anzeige in der Betreiberleiste. Er schreibt keine Anfrageprotokolle, und die Web-Container protokollieren keine IP-Adressen. Damit bei Lastspitzen keine Meldungen verloren gehen, vergrößert `docker-compose.yml` die Warteschlange des Sockets (`net.unix.max_dgram_qlen`). Solange der Zählerdienst nicht läuft, bleiben Anfragen ungezählt, nach einem Neustart zusätzlich höchstens eine je nginx-Worker; die Website selbst ist davon nicht betroffen. Die Zahl ist kein manipulationssicheres Maß für unterschiedliche Besucher: Jede Seite löst mehrere Anfragen aus, und auch wiederholte oder absichtlich gesendete Anfragen erhöhen sie. Falls eine vorgeschaltete Firewall oder ein weiterer Proxy eigene Zugriffsprotokolle schreibt, deren Einstellungen vor Veröffentlichung der angepassten Datenschutzerklärung gesondert prüfen. Auf diesem VPS bleiben die öffentlichen Firewall-Freigaben unverändert: 80/TCP und 443/TCP; der Zähler benötigt keinen neuen Port.
+
+**Rechtliches:** Die echten Anbieterangaben nach § 5 DDG (Dominic M. Quaiser, Chemnitz) stehen in der Leiste
+„Anbieter dieser Website“ am Ende jeder Seite (Anker `#anbieter`). Im Impressum heißen die erfundenen Firmendaten
+„Fiktive Unternehmensangaben (Testdaten)“ und sind ausdrücklich keine Anbieterangaben. Die Datenschutzerklärung nennt
+den echten Verantwortlichen und beschreibt den anonymen Anfragezähler. Die Aussagen zu deaktivierten Protokollen müssen zur Konfiguration aller vorgeschalteten Systeme passen.
+
+## Aufbau
+
+```text
+.
+├── index.html                      Startseite
+├── unternehmen/index.html          Profil, Geschichte, Werte, Fertigung, Standort
+├── unternehmen/team/index.html     6 Ansprechpartner
+├── produkte/beispielclamp-200/     Produktseite BC-200 (technische Daten, Varianten, FAQ)
+├── branchen/index.html             Maschinenbau, Anlagenbau, Automatisierungstechnik, Fördertechnik
+├── karriere/index.html             3 Stellenanzeigen
+├── news/index.html                 4 Meldungen, davon 2 mit Detailseite:
+│   ├── beispielclamp-200-startet-in-serienfertigung/
+│   └── neues-5-achs-bearbeitungszentrum/
+├── kontakt/index.html              Adresse, Zeiten, Ansprechpartner, Formular (reine Frontend-Demo)
+├── impressum/index.html            inkl. Sandbox-Hinweis
+├── datenschutz/index.html
+├── 404.html
+├── robots.txt, sitemap.xml, favicon.ico
+├── assets/css/style.css, assets/css/noscript.css
+├── assets/js/main.js
+├── assets/img/                     Logo, Favicons, Open-Graph-Bild, Produktzeichnung (SVG)
+├── assets/fonts/                   Barlow / Barlow Semi Condensed (OFL.txt), Roboto Mono (OFL-RobotoMono.txt), SIL OFL 1.1
+├── counter/                         Zählerdienst mit SQLite (nur im Docker-Netz erreichbar)
+├── deploy/nginx/                    separater VPS-Virtual-Host und Certbot-Hook
+├── Dockerfile, docker-compose.yml, nginx.conf
+```
+
+`/produkte/` hat keine eigene Seite und leitet per 301 auf `/produkte/beispielclamp-200/` weiter.
+
+## nginx
+
+- statische Auslieferung, `index.html` in Unterverzeichnissen, 301 auf Pfade mit abschließendem Slash
+- Gzip für HTML, CSS, JS, SVG, XML, JSON
+- Cache-Header: HTML `no-cache`, CSS/JS/Bilder 30 Tage (CSS/JS über `?v=` versioniert), Schriften 1 Jahr
+- Security-Header: CSP (nur `'self'`), `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`,
+  `Permissions-Policy`, `Cross-Origin-Opener-Policy`
+- `X-Robots-Tag: noindex, follow` für alle Antworten
+- eigene 404-Seite, auch für Verzeichnisse ohne Index; versteckte Dateien werden nicht ausgeliefert
+- Zugriffs- und Fehlerprotokolle für diese Website deaktiviert
+- jede Anfrage außer `/healthz` wird ohne Anfragedaten an den internen Zählerdienst gemeldet; `GET /api/requests` liefert den Gesamtstand
+- `POST /kontakt/` (Formular ohne JavaScript) wird nicht verarbeitet, sondern per 303 zurück zum Formular geleitet
+- `/healthz` für den Docker-Healthcheck
+- Container läuft mit schreibgeschütztem Dateisystem (`read_only`) und `no-new-privileges`
+
+## Structured Data
+
+Jede Seite enthält JSON-LD (`@graph`) mit stabilen `@id`s, die seitenübergreifend auf dieselben Entitäten zeigen:
+
+| Typ | Seiten |
+| --- | --- |
+| `Organization` (`/#organization`) | alle Seiten; vollständig auf Start, Unternehmen, Kontakt, Impressum |
+| `Person` (`/unternehmen/team/#<name>`) | Team (alle 6, ausführlich), dazu Start, Unternehmen, Produkt, Kontakt, Impressum, News |
+| `Product` (`/produkte/beispielclamp-200/#product`) mit `ProductModel`-Varianten | Produkt; Referenzen auf Start, Branchen, News |
+| `Article` | News-Übersicht (alle 4), News-Detailseiten |
+| `JobPosting` | Karriere (3) |
+| `WebSite`, `WebPage`/`AboutPage`/`ItemPage`/`ContactPage`/`CollectionPage`, `BreadcrumbList`, `ItemList` | je nach Seite |
+
+## Referenzdaten (Ground Truth)
+
+Diese Werte sind die „richtigen“ Antworten, gegen die Scraper- und Enrichment-Ergebnisse geprüft werden können.
+
+### Unternehmen
+
+| Feld | Wert |
+| --- | --- |
+| Firma | Beispielbusiness GmbH |
+| Rechtsform | GmbH (Gesellschaft mit beschränkter Haftung) |
+| Branche | Maschinenbau – Spanntechnik und Präzisionskomponenten |
+| Gründung | März 2017, Ostenfurt |
+| Gründer / Geschäftsführung | Dr.-Ing. Katrin Wendeler, Markus Hollenbach |
+| Mitarbeitende | 85 (Stand 2026), davon 7 Auszubildende |
+| Hauptsitz & Produktion | Walzmühlenstraße 14, 43219 Ostenfurt, Nordrhein-Westfalen, DE |
+| Standorte | 1 Produktionsstandort |
+| Produktionsfläche | 2.800 m² |
+| Telefon / Fax | +49 221 4710100 / +49 221 4710199 |
+| E-Mail | info@beispielbusiness.de (Vertrieb: vertrieb@, Bewerbungen: karriere@) |
+| Handelsregister | HRB 30817, Amtsgericht Ostenfurt (fiktiv) |
+| USt-IdNr. | DE318406725 (fiktiv, Prüfziffer bewusst ungültig) |
+| Zertifizierung | DIN EN ISO 9001:2015 seit 2019 |
+| Maschinenpark | 11 CNC-Bearbeitungszentren (4 × 5-Achs), 3 CNC-Dreh-Fräszentren |
+| Vertriebsregion | DE, AT, CH direkt; NL, BE, LU, DK, SE, PL, CZ über Partner (10 Länder) |
+| Kernprodukt | BeispielClamp 200 (BC-200) |
+
+### Geschichte
+
+| Jahr | Ereignis | Mitarbeitende |
+| --- | --- | --- |
+| 2017 | Gründung, angemietete Halle 900 m² | 9 |
+| 2019 | eigenes Werk Walzmühlenstraße, 1.600 m², ISO 9001 | 24 |
+| 2021 | Entwicklungsstart Spannsystem, Aufbau Anwendungstechnik | 41 |
+| 2024 | Serienstart BeispielClamp 200 (16.04.2024) | 68 |
+| 2025 | Hallenanbau +1.200 m² auf 2.800 m² (06/2025), 5-Achs-BAZ (11/2025) | – |
+
+### Personen
+
+| Name | Position | Abteilung | E-Mail | Telefon |
+| --- | --- | --- | --- | --- |
+| Dr.-Ing. Katrin Wendeler | Geschäftsführerin Technik & Produktion | Geschäftsführung | katrin.wendeler@beispielbusiness.de | +49 221 4710110 |
+| Markus Hollenbach | Geschäftsführer Kaufmännische Leitung & Vertrieb | Geschäftsführung | markus.hollenbach@beispielbusiness.de | +49 221 4710120 |
+| Tobias Kemmerling | Key Account Manager Technischer Vertrieb | Vertrieb | tobias.kemmerling@beispielbusiness.de | +49 221 4710231 |
+| Sabine Oltmanns | Leiterin Anwendungstechnik | Technische Beratung | sabine.oltmanns@beispielbusiness.de | +49 221 4710242 |
+| Florian Dreesen | Leiter Produktion & Qualitätssicherung | Produktion / Qualität | florian.dreesen@beispielbusiness.de | +49 221 4710310 |
+| Aylin Karaca | Teamleiterin Einkauf & Materialwirtschaft | Einkauf | aylin.karaca@beispielbusiness.de | +49 221 4710410 |
+
+Alle Personen arbeiten am Standort Ostenfurt. Produkt-Ansprechpartner: Kemmerling (Vertrieb), Oltmanns (Technik).
+
+### Produkt BeispielClamp 200 (BC-200)
+
+| Merkmal | BC-200-A-080 | BC-200-A-125 | BC-200-S-125 | BC-200-S-160 |
+| --- | --- | --- | --- | --- |
+| Werkstoff | Aluminium EN AW-7075 | Aluminium EN AW-7075 | Stahl 16MnCr5 | Stahl 16MnCr5 |
+| L × B × H (mm) | 180 × 80 × 72 | 240 × 125 × 88 | 240 × 125 × 88 | 300 × 160 × 104 |
+| Spannkraft 6 bar | 5,0 kN | 9,0 kN | 12,0 kN | 20,0 kN |
+| Spannkraft mechanisch max. | 8 kN | 14 kN | 20 kN | 32 kN |
+| Wiederholgenauigkeit | ≤ 0,01 mm | ≤ 0,01 mm | ≤ 0,005 mm | ≤ 0,005 mm |
+| Gewicht | 2,1 kg | 4,9 kg | 13,2 kg | 24,5 kg |
+
+Bestellschlüssel `BC-200-<A|S>-<080|125|160>-<P|M|F>`; 10 Standardartikel, Federspeicher (F) nur Stahl,
+lieferbar ab November 2026. Schnittstellenraster 50 mm, 4–8 bar, Schließzeit < 0,4 s, +5 bis +70 °C.
+
+### Stellen
+
+| Ref.-Nr. | Titel | Vergütung | Ansprechpartner | veröffentlicht / gültig bis |
+| --- | --- | --- | --- | --- |
+| BB-26-011 | CNC-Zerspanungsmechaniker (m/w/d) Fräsen | 3.400–4.100 €/Monat | Florian Dreesen | 2026-08-17 / 2026-11-30 |
+| BB-26-014 | Technischer Vertriebsmitarbeiter (m/w/d) im Außendienst – Süddeutschland | 62.000–74.000 €/Jahr | Markus Hollenbach | 2026-09-02 / 2026-12-15 |
+| BB-26-016 | Industriemechaniker (m/w/d) Montage Spannsysteme | 3.200–3.800 €/Monat | Florian Dreesen | 2026-09-15 / 2026-12-31 |
+
+### News
+
+| Datum | Kategorie | Titel | Detailseite |
+| --- | --- | --- | --- |
+| 2026-09-08 | Messe | BeispielClamp 200 auf der MONTAVIA 2026 (fiktive Messe) | nein |
+| 2025-11-18 | Fertigung | Neues 5-Achs-Bearbeitungszentrum erweitert Fertigungskapazität | ja |
+| 2025-06-03 | Unternehmen | Hallenerweiterung abgeschlossen: Produktionsfläche wächst auf 2.800 m² | nein |
+| 2024-04-16 | Produkt | BeispielClamp 200 startet in Serienfertigung | ja |
+
+### Bewusste Schreibvarianten (Normalisierung / Entity Resolution)
+
+- Mitarbeitende: „85 Mitarbeitende“, „rund 85 Beschäftigten“, „85 Mitarbeiterinnen und Mitarbeiter“; historisch 68 (Pressetext 04/2024)
+- Telefon: `+49 221 4710-100`, `+49 (0) 221 / 4710 - 100`, `0221 4710-100`, `+49 221 4710 100`, `(0221) 4710-410`, `+49 (0)221 4710 231`, `+49 221 4710310`
+- Adresse: `Walzmühlenstraße 14, 43219 Ostenfurt` und `Walzmühlenstr. 14 · D-43219 Ostenfurt`
+- Namen: „Dr.-Ing. Katrin Wendeler“ / „Katrin Wendeler“; Firma „Beispielbusiness GmbH“ / „Beispielbusiness“ / „Gesellschaft mit beschränkter Haftung (GmbH)“
+- Produkt: „BeispielClamp 200“, „BC-200“, Artikelnummern `BC-200-S-125-P` usw.
+- Fläche: „2.800 m²“ (sichtbar) und `2800` mit `unitCode MTK` (JSON-LD)
+- Datumsformate: `08.09.2026`, `8. September 2026`, ISO 8601 in `datetime` und JSON-LD
+
+### Warum die Daten niemanden treffen
+
+- Telefonnummern aus dem von der Bundesnetzagentur für Medien reservierten Bereich 0221 4710 000–999
+- Postleitzahlen mit 43 sind in Deutschland nicht vergeben; Ostenfurt ist ein erfundener Ort
+- USt-IdNr. besteht die amtliche Prüfziffernberechnung nicht
+- Personen, Messe (MONTAVIA) und Registergericht sind erfunden
