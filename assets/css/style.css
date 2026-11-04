@@ -39,18 +39,11 @@
   font-display: swap;
 }
 
+/* Variable Schrift (100–700), wie auf krake.run; die Anbieter-Leiste nutzt die leichten Schnitte. */
 @font-face {
   font-family: "Roboto Mono";
-  src: url("../fonts/roboto-mono-latin-400-normal.woff2") format("woff2");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Roboto Mono";
-  src: url("../fonts/roboto-mono-latin-600-normal.woff2") format("woff2");
-  font-weight: 600;
+  src: url("../fonts/roboto-mono-latin-variable.woff2") format("woff2");
+  font-weight: 100 700;
   font-style: normal;
   font-display: swap;
 }
@@ -84,12 +77,19 @@
   --font-head: "Barlow Semi Condensed", "Barlow", "Arial Narrow", Arial, sans-serif;
   --font-mono: "Roboto Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 
-  /* Anbieter-Leiste im Design von Krake */
+  /* Anbieter-Leiste im Design von krake.run */
   --krake-bg: #0f1113;
   --krake-text: #ffffff;
   --krake-grey: #cccccc;
+  --krake-muted: #8f9397;
   --krake-accent: #ff6a00;
-  --krake-border: rgba(255, 255, 255, 0.08);
+  --krake-accent-dim: #351f10;
+  --krake-rail: rgba(255, 255, 255, 0.14);
+  --krake-line: rgba(255, 255, 255, 0.09);
+  --krake-mark: rgba(255, 255, 255, 0.3);
+  --krake-gutter: 24px;
+  /* Strichraster von krake.run: alle 16px ein Strich von 1×4px */
+  --krake-dashes: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16'%3E%3Crect x='8' y='6' width='1' height='4' fill='%23ffffff' fill-opacity='0.08'/%3E%3C/svg%3E");
 
   --container: 1200px;
   --gutter: 1rem;
@@ -2322,60 +2322,175 @@ table.spec thead code {
   margin: 0;
 }
 
+/* --- Anbieter-Leiste im Design von krake.run ---
+   Wie die Seiten von krake.run: eine gestrichelte Linie über die ganze Breite,
+   darunter eine Spalte zwischen gestrichelten Schienen mit Zellen aus
+   Haarlinien und kleinen Eckmarken. Neben der Spalte und in der Krake-Zelle
+   liegt das Strichraster; mit JavaScript leuchtet es um den Mauszeiger auf. */
 .operator-bar {
-  background: var(--krake-bg);
+  position: relative;
+  overflow: hidden;
+  background-color: var(--krake-bg);
+  background-image: var(--krake-dashes);
   color: var(--krake-grey);
   font-family: var(--font-mono);
-  font-size: 0.875rem;
-  line-height: 1.75;
+  font-size: 0.85rem;
+  font-weight: 300;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-.operator-inner {
+/* Die gestrichelte Linie über die ganze Breite */
+.operator-bar::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  height: 1px;
+  background: repeating-linear-gradient(90deg, var(--krake-rail) 0 18px, transparent 18px 30px);
+  pointer-events: none;
+}
+
+/* Leuchtendes Raster (main.js); liegt unter dem Inhalt seines Elements */
+.operator-glow {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.operator-frame {
+  position: relative;
+  z-index: 1;
+  width: min(var(--container), calc(100% - 2 * var(--krake-gutter)));
+  margin-inline: auto;
+  padding: clamp(2.5rem, 6vw, 4.5rem) 0;
+  background: var(--krake-bg);
+}
+
+/* Die Schienen: gestrichelte Linien an beiden Rändern der Spalte */
+.operator-frame::before,
+.operator-frame::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: repeating-linear-gradient(180deg, var(--krake-rail) 0 10px, transparent 10px 22px);
+  pointer-events: none;
+}
+
+.operator-frame::before {
+  left: 0;
+}
+
+.operator-frame::after {
+  right: 0;
+}
+
+.operator-cells {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.45fr) minmax(0, 1fr);
-  gap: 2.5rem;
-  padding-top: 2.25rem;
-  padding-bottom: 2.25rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid var(--krake-line);
+  border-left: 1px solid var(--krake-line);
 }
 
-.operator-col+.operator-col {
-  padding-left: 2.5rem;
-  border-left: 1px solid var(--krake-border);
+.operator-cell {
+  position: relative;
+  min-width: 0;
+  padding: clamp(1.5rem, 3vw, 2.25rem);
+  border-right: 1px solid var(--krake-line);
+  border-bottom: 1px solid var(--krake-line);
+  background: var(--krake-bg);
 }
 
-.site-footer .operator-label {
+/* Eckmarken: ::before zeichnet die Quadrate, ::after schneidet sie innen aus */
+.operator-cell::before,
+.operator-cell::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  background-repeat: no-repeat;
+  pointer-events: none;
+}
+
+.operator-cell::before {
+  inset: -5px;
+  background-image:
+    linear-gradient(var(--krake-mark), var(--krake-mark)),
+    linear-gradient(var(--krake-mark), var(--krake-mark)),
+    linear-gradient(var(--krake-mark), var(--krake-mark)),
+    linear-gradient(var(--krake-mark), var(--krake-mark));
+  background-size: 9px 9px;
+  background-position: left top, right top, left bottom, right bottom;
+}
+
+.operator-cell::after {
+  inset: -4px;
+  background-image:
+    linear-gradient(var(--krake-bg), var(--krake-bg)),
+    linear-gradient(var(--krake-bg), var(--krake-bg)),
+    linear-gradient(var(--krake-bg), var(--krake-bg)),
+    linear-gradient(var(--krake-bg), var(--krake-bg));
+  background-size: 7px 7px;
+  background-position: left top, right top, left bottom, right bottom;
+}
+
+/* Die Krake-Zelle zeigt das Raster hinter ihrem Inhalt */
+.operator-krake {
+  background-image: var(--krake-dashes);
+}
+
+.operator-krake> :not(.operator-glow) {
+  position: relative;
+  z-index: 1;
+}
+
+.operator-bar .operator-eyebrow {
   display: flex;
   align-items: center;
-  gap: 0.55rem;
-  margin: 0 0 0.8rem;
+  gap: 0.65rem;
+  margin: 0 0 1.1rem;
   font-family: var(--font-mono);
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: 0.7rem;
+  font-weight: 500;
   line-height: 1.4;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--krake-accent);
 }
 
-.operator-bar .operator-sub {
-  margin: -0.5rem 0 0.6rem;
-  font-size: 0.8rem;
-  color: var(--krake-grey);
-  opacity: 0.75;
+/* Ein Pixel des Logos als Marke vor der Überschrift */
+.operator-eyebrow::before {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 6px;
+  background: currentColor;
 }
 
-.operator-mark {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
+.operator-bar .operator-sub {
+  margin: -0.4rem 0 1rem;
+  color: var(--krake-muted);
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
 }
 
 .operator-bar address {
+  font-style: normal;
+  color: var(--krake-grey);
+}
+
+.operator-bar address::first-line {
   color: var(--krake-text);
 }
 
 .operator-bar p {
-  margin: 0 0 0.5rem;
+  margin: 0 0 1rem;
 }
 
 .operator-bar p:last-child {
@@ -2384,31 +2499,202 @@ table.spec thead code {
 
 .site-footer .operator-bar a {
   color: var(--krake-text);
-  text-decoration: underline;
-  text-decoration-color: var(--krake-accent);
-  text-decoration-thickness: 1px;
-  text-underline-offset: 3px;
+  text-decoration: none;
 }
 
 .site-footer .operator-bar a:hover {
-  color: var(--krake-accent);
+  text-decoration: none;
 }
 
 .site-footer .operator-bar a:focus-visible {
-  outline-color: var(--krake-accent);
+  outline: 2px solid var(--krake-accent);
+  outline-offset: 3px;
+  border-radius: 2px;
 }
 
-.operator-link {
+/* Text-Link: die Unterstreichung wächst beim Darüberfahren von links */
+.site-footer .operator-bar address a {
+  background-image: linear-gradient(var(--krake-accent), var(--krake-accent));
+  background-position: left bottom;
+  background-repeat: no-repeat;
+  background-size: 0% 1px;
+  transition: background-size 0.25s ease, color 0.2s ease;
+}
+
+.site-footer .operator-bar address a:hover {
   color: var(--krake-accent);
-  font-weight: 600;
+  background-size: 100% 1px;
 }
 
-.operator-bar .operator-requests {
-  margin-top: 1rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--krake-border);
+/* Link mit Pfeil, der beim Darüberfahren nach rechts rückt */
+.site-footer .operator-bar .operator-arrow-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--krake-accent);
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.operator-arrow {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.25s ease;
+}
+
+.operator-bar a:hover .operator-arrow {
+  transform: translateX(3px);
+}
+
+/* Umrandeter Knopf in der Akzentfarbe, wie "Konto erstellen" auf krake.run */
+.site-footer .operator-bar .operator-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 2.6rem;
+  padding: 0.45rem 1.6rem;
+  border: 1px solid var(--krake-accent);
+  border-radius: 4px;
+  color: var(--krake-accent);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: background-color 0.2s ease;
+}
+
+.site-footer .operator-bar .operator-button:hover {
+  background: var(--krake-accent-dim);
+}
+
+/* Wortmarke mit dem Pixel-Logo */
+.operator-bar .operator-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin: 0 0 1.1rem;
   color: var(--krake-text);
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+}
+
+.operator-mark {
+  display: block;
+  flex: none;
+  width: 28px;
+  height: 28px;
+}
+
+/* Farbwelle (main.js): Die Pixel starten weiß und werden nacheinander orange. */
+.operator-pixel {
+  fill: var(--krake-accent);
+  transition: fill 0.18s ease-out;
+  transition-delay: var(--d, 0s);
+}
+
+.operator-mark.is-wave-start .operator-pixel {
+  fill: var(--krake-text);
+  transition: none;
+}
+
+.operator-eye {
+  fill: var(--krake-bg);
+  transition: fill 0.18s ease-out;
+}
+
+.operator-eye.is-blink {
+  fill: var(--krake-accent);
+}
+
+/* Anfragezähler (main.js) */
+.operator-bar .operator-requests {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem 1rem;
+  margin-top: 1.5rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--krake-line);
+}
+
+.operator-requests-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--krake-muted);
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* Pulsierender Pixel: Der Stand zählt jede Anfrage live mit. */
+.operator-requests-label::before {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 6px;
+  background: var(--krake-accent);
+  animation: operator-live 2.4s ease-in-out infinite;
+}
+
+@keyframes operator-live {
+
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(255, 106, 0, 0.45);
+  }
+
+  50% {
+    opacity: 0.35;
+    box-shadow: 0 0 0 4px rgba(255, 106, 0, 0);
+  }
+}
+
+.operator-requests-value {
+  color: var(--krake-text);
+  font-size: 1.6rem;
+  font-weight: 200;
+  line-height: 1.1;
+  letter-spacing: 0.04em;
   font-variant-numeric: tabular-nums;
+}
+
+/* Auftritt beim Scrollen: nur mit JavaScript und nur, wenn die Leiste beim
+   Laden noch nicht zu sehen war (main.js setzt dann .is-animated). */
+.operator-bar.is-animated .operator-cell {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.operator-bar.is-animated .operator-cell:nth-child(2) {
+  transition-delay: 0.1s;
+}
+
+.operator-bar.is-animated .operator-cell:nth-child(3) {
+  transition-delay: 0.2s;
+}
+
+.operator-bar.is-animated.is-visible .operator-cell {
+  opacity: 1;
+  transform: none;
 }
 
 /* Responsive */
@@ -2595,16 +2881,14 @@ table.spec thead code {
 }
 
 @media (max-width: 900px) {
-  .operator-inner {
+  .operator-cells {
     grid-template-columns: minmax(0, 1fr);
-    gap: 1.5rem;
   }
+}
 
-  .operator-col+.operator-col {
-    padding-top: 1.5rem;
-    padding-left: 0;
-    border-left: 0;
-    border-top: 1px solid var(--krake-border);
+@media (max-width: 640px) {
+  :root {
+    --krake-gutter: 10px;
   }
 }
 
@@ -2811,6 +3095,10 @@ table.spec thead code {
   *::after {
     transition: none !important;
   }
+
+  .operator-requests-label::before {
+    animation: none;
+  }
 }
 
 /* Druck */
@@ -2852,12 +3140,27 @@ table.spec thead code {
   .site-footer a,
   .operator-bar,
   .operator-bar address,
+  .operator-bar address::first-line,
+  .operator-bar .operator-logo,
+  .operator-requests-value,
   .site-footer .operator-bar a {
     color: #000;
   }
 
-  .operator-bar {
+  .operator-bar,
+  .operator-frame,
+  .operator-cell {
     background: none;
+  }
+
+  .operator-bar::before,
+  .operator-frame::before,
+  .operator-frame::after,
+  .operator-cell::before,
+  .operator-cell::after,
+  .operator-glow,
+  .operator-arrow {
+    display: none;
   }
 
   a[href^="http"]::after {

@@ -2,7 +2,8 @@
  * Beispielbusiness GmbH – kleine UI-Funktionen
  * - mobile Navigation
  * - Formularvalidierung Kontaktformular (reine Frontend-Prüfung, kein Versand)
- * - Anzeige des anonymen Gesamtzählers für HTTP-Anfragen in der Betreiberleiste
+ * - Anbieter-Leiste im Stil von krake.run: Raster, Logo-Welle, Blinzeln, Auftritt
+ *   und Anzeige des anonymen Gesamtzählers für HTTP-Anfragen
  * Alle redaktionellen Inhalte stehen im initialen HTML.
  */
 (function () {
@@ -70,29 +71,248 @@
   openDetailsFromHash();
   window.addEventListener("hashchange", openDetailsFromHash);
 
-  /* HTTP-Anfragen: Der Server zählt jede Anfrage selbst; hier wird nur der Stand angezeigt. */
-  var operatorNotice = document.querySelector('.operator-bar .operator-col[aria-labelledby="hinweis-titel"]');
-  if (operatorNotice && window.fetch) {
-    window.fetch("/api/requests", {
-      credentials: "omit",
-      cache: "no-store",
-      referrerPolicy: "no-referrer"
-    }).then(function (response) {
-      if (!response.ok) {
-        throw new Error("Counter unavailable");
+  /* Anbieter-Leiste: Animationen wie auf krake.run. Alles ist Zugabe; ohne
+     JavaScript oder bei reduzierter Bewegung bleibt die Leiste statisch. */
+  var operatorBar = document.querySelector(".operator-bar");
+  var calm = !window.matchMedia || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var canObserve = "IntersectionObserver" in window;
+
+  // Ruft fn einmal auf, sobald element sichtbar ist.
+  function whenVisible(element, fn, threshold) {
+    if (!canObserve) {
+      fn();
+      return;
+    }
+    var observer = new IntersectionObserver(function (entries) {
+      if (entries[0].isIntersecting) {
+        observer.disconnect();
+        fn();
       }
-      return response.json();
-    }).then(function (data) {
-      if (!Number.isSafeInteger(data.requests) || data.requests < 0) {
-        return;
+    }, { threshold: threshold || 0 });
+    observer.observe(element);
+  }
+
+  /* Strichraster wie auf krake.run: Um den Mauszeiger leuchten die Striche
+     orange auf und verblassen wieder. Die grauen Striche kommen aus dem CSS. */
+  function gridGlow(host, area) {
+    var GRID = 16;
+    var RADIUS = 140;
+    var DECAY = 0.86;
+    var canvas = document.createElement("canvas");
+    var ctx = canvas.getContext && canvas.getContext("2d");
+    if (!ctx) {
+      return;
+    }
+    canvas.className = "operator-glow";
+    canvas.setAttribute("aria-hidden", "true");
+    host.insertBefore(canvas, host.firstChild);
+
+    var accent = getComputedStyle(host).getPropertyValue("--krake-accent").trim() || "#ff6a00";
+    var width = 0;
+    var height = 0;
+    var cols = 0;
+    var rows = 0;
+    var boost = new Float32Array(0);
+    var lit = new Set();
+    var pointer = null;
+    var frame = 0;
+
+    function resize() {
+      var ratio = window.devicePixelRatio || 1;
+      width = host.clientWidth;
+      height = host.clientHeight;
+      canvas.width = Math.round(width * ratio);
+      canvas.height = Math.round(height * ratio);
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      cols = Math.ceil(width / GRID);
+      rows = Math.ceil(height / GRID);
+      boost = new Float32Array(cols * rows);
+      lit.clear();
+    }
+
+    function step() {
+      frame = 0;
+      lit.forEach(function (i) {
+        boost[i] *= DECAY;
+        if (boost[i] < 0.01) {
+          boost[i] = 0;
+          lit.delete(i);
+        }
+      });
+      if (pointer) {
+        var firstCol = Math.max(0, Math.floor((pointer.x - RADIUS) / GRID));
+        var lastCol = Math.min(cols - 1, Math.ceil((pointer.x + RADIUS) / GRID));
+        var firstRow = Math.max(0, Math.floor((pointer.y - RADIUS) / GRID));
+        var lastRow = Math.min(rows - 1, Math.ceil((pointer.y + RADIUS) / GRID));
+        for (var row = firstRow; row <= lastRow; row++) {
+          for (var col = firstCol; col <= lastCol; col++) {
+            var dx = col * GRID + 8 - pointer.x;
+            var dy = row * GRID + 6 - pointer.y;
+            var strength = 1 - Math.sqrt(dx * dx + dy * dy) / RADIUS;
+            var i = row * cols + col;
+            if (strength > boost[i]) {
+              boost[i] = strength;
+              lit.add(i);
+            }
+          }
+        }
       }
-      var line = document.createElement("p");
-      line.className = "operator-requests";
-      line.textContent = "HTTP-Anfragen gesamt: " + data.requests.toLocaleString("de-DE");
-      operatorNotice.appendChild(line);
-    }).catch(function () {
-      // Die Website bleibt auch ohne Zähler vollständig nutzbar.
+      ctx.clearRect(0, 0, width, height);
+      ctx.fillStyle = accent;
+      lit.forEach(function (i) {
+        ctx.globalAlpha = boost[i];
+        ctx.fillRect((i % cols) * GRID + 8, Math.floor(i / cols) * GRID + 6, 1, 4);
+      });
+      ctx.globalAlpha = 1;
+      // Nur weiterzeichnen, solange etwas leuchtet.
+      if (pointer || lit.size) {
+        frame = window.requestAnimationFrame(step);
+      }
+    }
+
+    function wake() {
+      if (!frame) {
+        frame = window.requestAnimationFrame(step);
+      }
+    }
+
+    area.addEventListener("pointermove", function (event) {
+      var box = host.getBoundingClientRect();
+      pointer = { x: event.clientX - box.left, y: event.clientY - box.top };
+      wake();
     });
+    area.addEventListener("pointerleave", function () {
+      pointer = null;
+      wake();
+    });
+    if ("ResizeObserver" in window) {
+      new ResizeObserver(resize).observe(host);
+    } else {
+      window.addEventListener("resize", resize);
+    }
+    resize();
+  }
+
+  /* Pixel-Logo: diagonale Farbwelle von Weiß zu Orange und zufälliges Blinzeln */
+  function animateLogo(mark) {
+    Array.prototype.forEach.call(mark.querySelectorAll(".operator-pixel"), function (pixel) {
+      var diagonal = Number(pixel.getAttribute("x")) + Number(pixel.getAttribute("y")) - 3;
+      pixel.style.setProperty("--d", (diagonal * 0.06).toFixed(2) + "s");
+    });
+
+    function wave(delay) {
+      mark.classList.add("is-wave-start");
+      window.setTimeout(function () {
+        mark.classList.remove("is-wave-start");
+      }, delay);
+    }
+
+    var eyes = mark.querySelectorAll(".operator-eye");
+    function blinkLater() {
+      window.setTimeout(function () {
+        Array.prototype.forEach.call(eyes, function (eye) { eye.classList.add("is-blink"); });
+        window.setTimeout(function () {
+          Array.prototype.forEach.call(eyes, function (eye) { eye.classList.remove("is-blink"); });
+        }, 140);
+        blinkLater();
+      }, 4000 + Math.random() * 12000);
+    }
+
+    return { wave: wave, blinkLater: blinkLater };
+  }
+
+  /* Zählt eine Zahl hoch, sobald sie sichtbar ist. */
+  function countUp(element, target) {
+    function show(value) {
+      element.textContent = value.toLocaleString("de-DE");
+    }
+    if (calm) {
+      show(target);
+      return;
+    }
+    show(0);
+    whenVisible(element, function () {
+      var start = null;
+      var duration = 1400;
+      function tick(now) {
+        if (start === null) {
+          start = now;
+        }
+        var progress = Math.min(1, (now - start) / duration);
+        var eased = 1 - Math.pow(1 - progress, 3);
+        show(Math.round(target * eased));
+        if (progress < 1) {
+          window.requestAnimationFrame(tick);
+        }
+      }
+      window.requestAnimationFrame(tick);
+    }, 0.6);
+  }
+
+  if (operatorBar) {
+    var operatorMark = operatorBar.querySelector(".operator-mark");
+    var operatorKrake = operatorBar.querySelector(".operator-krake");
+    var logo = operatorMark ? animateLogo(operatorMark) : null;
+
+    if (!calm) {
+      gridGlow(operatorBar, operatorBar);
+      if (operatorKrake) {
+        gridGlow(operatorKrake, operatorKrake);
+      }
+      // Auftritt und Welle nur, wenn die Leiste beim Laden noch unter dem sichtbaren Bereich liegt.
+      var below = canObserve && operatorBar.getBoundingClientRect().top > window.innerHeight;
+      if (below) {
+        operatorBar.classList.add("is-animated");
+        if (operatorMark) {
+          operatorMark.classList.add("is-wave-start");
+        }
+      }
+      whenVisible(operatorBar, function () {
+        operatorBar.classList.add("is-visible");
+        if (logo && below) {
+          logo.wave(450);
+        }
+      }, 0.15);
+      if (logo) {
+        logo.blinkLater();
+        operatorMark.parentNode.addEventListener("pointerenter", function () {
+          logo.wave(60);
+        });
+      }
+    }
+
+    /* HTTP-Anfragen: Der Server zählt jede Anfrage selbst; hier wird nur der Stand angezeigt. */
+    var operatorNotice = operatorBar.querySelector(".operator-notice");
+    if (operatorNotice && window.fetch) {
+      window.fetch("/api/requests", {
+        credentials: "omit",
+        cache: "no-store",
+        referrerPolicy: "no-referrer"
+      }).then(function (response) {
+        if (!response.ok) {
+          throw new Error("Counter unavailable");
+        }
+        return response.json();
+      }).then(function (data) {
+        if (!Number.isSafeInteger(data.requests) || data.requests < 0) {
+          return;
+        }
+        var line = document.createElement("p");
+        line.className = "operator-requests";
+        var label = document.createElement("span");
+        label.className = "operator-requests-label";
+        label.textContent = "HTTP-Anfragen gesamt";
+        var value = document.createElement("span");
+        value.className = "operator-requests-value";
+        line.appendChild(label);
+        line.appendChild(document.createTextNode(" "));
+        line.appendChild(value);
+        operatorNotice.appendChild(line);
+        countUp(value, data.requests);
+      }).catch(function () {
+        // Die Website bleibt auch ohne Zähler vollständig nutzbar.
+      });
+    }
   }
 
   /* Kontaktformular */
