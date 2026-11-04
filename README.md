@@ -9,9 +9,9 @@ Anbieter der Website: Sie stehen auf jeder Seite in einer eigenen Leiste unten i
 ausführliche Kennzeichnung als Sandbox steht im Impressum.
 
 - Frontend aus HTML, CSS und Vanilla JavaScript ohne Build-Schritt; kleiner Python-Dienst für den Zähler
-- Alle redaktionellen Inhalte stehen im initialen HTML; JavaScript ergänzt Navigation, FAQ-Anker, Formularprüfung und den Seitenaufrufzähler
+- Alle redaktionellen Inhalte stehen im initialen HTML; JavaScript ergänzt Navigation, FAQ-Anker, Formularprüfung und die Anzeige des Anfragezählers
 - Keine Cookies, keine Besucherkennungen und keine externen Ressourcen (Schriften lokal)
-- Anonymer, persistenter Gesamtzähler für Seitenaufrufe; es werden keine IP-Adressen oder einzelnen Besuche gespeichert
+- Anonymer, persistenter Gesamtzähler für alle HTTP-Anfragen; es werden keine IP-Adressen oder einzelnen Anfragen gespeichert
 - Nicht in Suchmaschinen-Indizes: `<meta name="robots" content="noindex, follow">` auf jeder Seite und
   `X-Robots-Tag: noindex, follow` für alle Antworten. Crawling bleibt erlaubt (`robots.txt`), Scraper sind nicht betroffen
 
@@ -81,23 +81,25 @@ sudo certbot renew --dry-run
 
 Der Hook läuft nur nach einer erfolgreichen Zertifikatserneuerung. Der Webroot für die HTTP-Challenge bleibt auch in der HTTPS-Konfiguration erreichbar. Bei späteren Änderungen an der Website genügt `docker compose up -d --build`; der Nginx auf dem VPS muss dafür nicht neu geladen werden.
 
-### Update für den Seitenaufrufzähler
+### Update für den Anfragezähler
 
-Beim Upgrade einer bereits laufenden Installation zuerst die aktualisierte HTTPS-Konfiguration auf dem VPS installieren. Sie deaktiviert Zugriffs- und Fehlerprotokolle **nur für diese Domain**. Danach die Container mit dem neuen Zählerdienst bauen und starten:
+Beim Upgrade einer Installation ohne Zähler zuerst die aktualisierte HTTPS-Konfiguration auf dem VPS installieren; sie deaktiviert Zugriffs- und Fehlerprotokolle **nur für diese Domain**. Danach die Container mit dem neuen Zählerdienst bauen und starten. Läuft bereits der bisherige Seitenaufrufzähler, ist die HTTPS-Konfiguration schon installiert, und die letzten beiden Befehle genügen:
 
 ```bash
 sudo cp deploy/nginx/beispielbusiness.https.conf /etc/nginx/conf.d/beispielbusiness.conf
 sudo nginx -t && sudo systemctl reload nginx
 docker compose up -d --build
-curl -i -X POST -H 'X-Pageview: 1' https://beispielbusiness.de/api/pageviews
+curl -s https://beispielbusiness.de/api/requests
 ```
 
-Der letzte Aufruf erhöht den Zähler um eins und liefert zum Beispiel `{"pageviews":1}`. Beim Laden einer Seite mit JavaScript wird der Gesamtstand in der Betreiberleiste angezeigt; ohne JavaScript wird nichts gezählt oder eingeblendet. Der Dienst speichert nur den Gesamtwert in SQLite. Er schreibt keine Anfrageprotokolle, und die Web-Container protokollieren keine IP-Adressen. Die Zahl ist kein manipulationssicheres Maß für unterschiedliche Besucher: Auch wiederholte oder absichtlich gesendete Aufrufe erhöhen sie. Falls eine vorgeschaltete Firewall oder ein weiterer Proxy eigene Zugriffsprotokolle schreibt, deren Einstellungen vor Veröffentlichung der angepassten Datenschutzerklärung gesondert prüfen. Auf diesem VPS bleiben die öffentlichen Firewall-Freigaben unverändert: 80/TCP und 443/TCP; der Zähler benötigt keinen neuen Port.
+Der letzte Aufruf liefert zum Beispiel `{"requests": 42}`. Ein zweiter Aufruf zeigt mindestens eins mehr, denn auch die Abfrage selbst wird gezählt. Gezählt wird jede HTTP-Anfrage, die der Web-Container beantwortet: Seiten, CSS, JavaScript, Schriften, Bilder, Weiterleitungen und Fehlerseiten, unabhängig davon, ob der Client JavaScript ausführt. Ausgenommen sind der Docker-Healthcheck `/healthz` und Anfragen, die der Nginx auf dem VPS selbst beantwortet, ohne sie an den Container weiterzuleiten, also die Weiterleitungen von HTTP auf HTTPS und von `www` sowie die ACME-Challenges. Der neue Zähler beginnt bei 0; der Stand des bisherigen Seitenaufrufzählers bleibt in der Datenbank erhalten, wird aber nicht mehr angezeigt.
+
+nginx meldet jede Anfrage über einen Unix-Socket im Volume `counter-socket` an den Zählerdienst, und zwar als festen Text im Syslog-Format. Außer der Uhrzeit im Syslog-Kopf, die der Dienst verwirft, enthält die Meldung keine Angaben wie IP-Adresse oder Pfad. Der Dienst zählt im Speicher, schreibt den Stand jede Sekunde und beim Beenden in SQLite und liefert ihn für die Anzeige in der Betreiberleiste. Er schreibt keine Anfrageprotokolle, und die Web-Container protokollieren keine IP-Adressen. Damit bei Lastspitzen keine Meldungen verloren gehen, vergrößert `docker-compose.yml` die Warteschlange des Sockets (`net.unix.max_dgram_qlen`). Solange der Zählerdienst nicht läuft, bleiben Anfragen ungezählt, nach einem Neustart zusätzlich höchstens eine je nginx-Worker; die Website selbst ist davon nicht betroffen. Die Zahl ist kein manipulationssicheres Maß für unterschiedliche Besucher: Jede Seite löst mehrere Anfragen aus, und auch wiederholte oder absichtlich gesendete Anfragen erhöhen sie. Falls eine vorgeschaltete Firewall oder ein weiterer Proxy eigene Zugriffsprotokolle schreibt, deren Einstellungen vor Veröffentlichung der angepassten Datenschutzerklärung gesondert prüfen. Auf diesem VPS bleiben die öffentlichen Firewall-Freigaben unverändert: 80/TCP und 443/TCP; der Zähler benötigt keinen neuen Port.
 
 **Rechtliches:** Die echten Anbieterangaben nach § 5 DDG (Dominic M. Quaiser, Chemnitz) stehen in der Leiste
 „Anbieter dieser Website“ am Ende jeder Seite (Anker `#anbieter`). Im Impressum heißen die erfundenen Firmendaten
 „Fiktive Unternehmensangaben (Testdaten)“ und sind ausdrücklich keine Anbieterangaben. Die Datenschutzerklärung nennt
-den echten Verantwortlichen und beschreibt den anonymen Seitenaufrufzähler. Die Aussagen zu deaktivierten Protokollen müssen zur Konfiguration aller vorgeschalteten Systeme passen.
+den echten Verantwortlichen und beschreibt den anonymen Anfragezähler. Die Aussagen zu deaktivierten Protokollen müssen zur Konfiguration aller vorgeschalteten Systeme passen.
 
 ## Aufbau
 
@@ -138,7 +140,7 @@ den echten Verantwortlichen und beschreibt den anonymen Seitenaufrufzähler. Die
 - `X-Robots-Tag: noindex, follow` für alle Antworten
 - eigene 404-Seite, auch für Verzeichnisse ohne Index; versteckte Dateien werden nicht ausgeliefert
 - Zugriffs- und Fehlerprotokolle für diese Website deaktiviert
-- `POST /api/pageviews` leitet an den internen Zählerdienst weiter
+- jede Anfrage außer `/healthz` wird ohne Anfragedaten an den internen Zählerdienst gemeldet; `GET /api/requests` liefert den Gesamtstand
 - `POST /kontakt/` (Formular ohne JavaScript) wird nicht verarbeitet, sondern per 303 zurück zum Formular geleitet
 - `/healthz` für den Docker-Healthcheck
 - Container läuft mit schreibgeschütztem Dateisystem (`read_only`) und `no-new-privileges`

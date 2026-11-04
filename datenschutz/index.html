@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Datenschutzerklärung | Beispielbusiness GmbH</title>
   <meta name="description"
-    content="Datenschutzerklärung für beispielbusiness.de: ohne Cookies oder Kennungen, mit anonymem Gesamtzähler für Seitenaufrufe.">
+    content="Datenschutzerklärung für beispielbusiness.de: ohne Cookies oder Kennungen, mit anonymem Gesamtzähler für HTTP-Anfragen.">
   <meta name="robots" content="noindex, follow">
   <link rel="canonical" href="https://beispielbusiness.de/datenschutz/">
   <meta property="og:type" content="website">
@@ -14,7 +14,7 @@
   <meta property="og:locale" content="de_DE">
   <meta property="og:title" content="Datenschutzerklärung">
   <meta property="og:description"
-    content="Datenschutzerklärung für beispielbusiness.de: ohne Cookies oder Kennungen, mit anonymem Gesamtzähler für Seitenaufrufe.">
+    content="Datenschutzerklärung für beispielbusiness.de: ohne Cookies oder Kennungen, mit anonymem Gesamtzähler für HTTP-Anfragen.">
   <meta property="og:url" content="https://beispielbusiness.de/datenschutz/">
   <meta property="og:image" content="https://beispielbusiness.de/assets/img/og-image.png">
   <meta property="og:image:width" content="1200">
@@ -28,11 +28,11 @@
   <link rel="preload" href="/assets/fonts/barlow-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/assets/fonts/barlow-semi-condensed-latin-600-normal.woff2" as="font" type="font/woff2"
     crossorigin>
-  <link rel="stylesheet" href="/assets/css/style.css?v=1.1.0">
+  <link rel="stylesheet" href="/assets/css/style.css?v=1.2.0">
   <noscript>
     <link rel="stylesheet" href="/assets/css/noscript.css?v=1.0.0">
   </noscript>
-  <script src="/assets/js/main.js?v=1.1.0" defer></script>
+  <script src="/assets/js/main.js?v=1.2.0" defer></script>
   <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -42,7 +42,7 @@
       "@id": "https://beispielbusiness.de/datenschutz/#webpage",
       "url": "https://beispielbusiness.de/datenschutz/",
       "name": "Datenschutzerklärung | Beispielbusiness GmbH",
-      "description": "Datenschutzerklärung für beispielbusiness.de: ohne Cookies oder Kennungen, mit anonymem Gesamtzähler für Seitenaufrufe.",
+      "description": "Datenschutzerklärung für beispielbusiness.de: ohne Cookies oder Kennungen, mit anonymem Gesamtzähler für HTTP-Anfragen.",
       "inLanguage": "de-DE",
       "isPartOf": {
         "@id": "https://beispielbusiness.de/#website"
@@ -156,7 +156,7 @@
           </ol>
         </nav>
         <h1>Datenschutzerklärung</h1>
-        <p class="lead">Stand: Oktober 2026</p>
+        <p class="lead">Stand: November 2026</p>
       </div>
     </section>
 
@@ -166,8 +166,8 @@
           <h2>1. Überblick</h2>
           <p>Diese Website verwendet keine Cookies, keine Besucherkennungen, keine externen Analyse- oder
             Tracking-Dienste und keine Social-Media-Plugins. Schriftarten, Grafiken und Skripte werden ausschließlich
-            von diesem Server ausgeliefert. Ein eigener Dienst zählt ausschließlich die Gesamtzahl der Seitenaufrufe.
-          </p>
+            von diesem Server ausgeliefert. Ein eigener Dienst zählt ausschließlich die Gesamtzahl der HTTP-Anfragen
+            an diese Website.</p>
 
           <h2>2. Verantwortliche Stelle</h2>
           <p>Verantwortlich für die Verarbeitung personenbezogener Daten im Sinne der Datenschutz-Grundverordnung
@@ -186,12 +186,15 @@
             dabei keine IP-Adressen. Rechtsgrundlage für die technische Auslieferung ist Art. 6 Abs. 1 lit. f DSGVO;
             das berechtigte Interesse liegt im Betrieb der Website.</p>
 
-          <h2>4. Gesamtzähler für Seitenaufrufe</h2>
-          <p>Bei aktiviertem JavaScript sendet der Browser beim Laden einer Seite eine Anfrage an einen Dienst auf
-            diesem Server. Der Dienst erhöht eine einzige, dauerhaft gespeicherte Gesamtzahl und gibt sie für die
-            Anzeige in der Betreiberleiste zurück. Er speichert weder IP-Adressen noch Seitenpfade, Zeitpunkte,
-            Referrer, Browserdaten oder individuelle Kennungen. Auch ein erneutes Laden zählt als weiterer Aufruf;
-            die Zahl gibt keine Anzahl unterschiedlicher Besucher an.</p>
+          <h2>4. Gesamtzähler für HTTP-Anfragen</h2>
+          <p>Der Webserver zählt jede HTTP-Anfrage an diese Website, etwa nach einer Seite, einem Bild, einer Schrift
+            oder einem Skript, unabhängig davon, ob JavaScript aktiviert ist. Dazu meldet er einem Dienst auf diesem
+            Server je Anfrage nur, dass eine Anfrage eingegangen ist. IP-Adressen, Seitenpfade, Referrer,
+            Browserdaten oder individuelle Kennungen erhält der Dienst nicht. Er erhöht eine einzige, dauerhaft
+            gespeicherte Gesamtzahl und speichert darüber hinaus nichts, auch keine Zeitpunkte. Bei aktiviertem
+            JavaScript wird die Gesamtzahl in der Betreiberleiste angezeigt; auch diese Abfrage zählt als Anfrage. Die
+            Zahl gibt weder Seitenaufrufe noch unterschiedliche Besucher an, denn schon das Laden einer einzelnen Seite
+            umfasst mehrere Anfragen.</p>
 
           <h2>5. Cookies und lokale Speicherung</h2>
           <p>Diese Website setzt keine Cookies und speichert keine Informationen im lokalen Speicher Ihres Browsers.</p>

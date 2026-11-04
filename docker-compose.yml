@@ -12,6 +12,9 @@ services:
       - /var/cache/nginx
       - /var/run
       - /tmp
+    volumes:
+      # Socket des Zählerdienstes; darüber meldet nginx jede Anfrage.
+      - counter-socket:/sockets:ro
     security_opt:
       - no-new-privileges:true
     logging:
@@ -30,6 +33,10 @@ services:
       - /tmp
     volumes:
       - pageviews:/data
+      - counter-socket:/sockets
+    sysctls:
+      # Warteschlange des Sockets (Standard: 10 Meldungen), damit bei Lastspitzen keine verloren gehen.
+      - net.unix.max_dgram_qlen=1024
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -42,3 +49,4 @@ services:
 
 volumes:
   pageviews:
+  counter-socket:

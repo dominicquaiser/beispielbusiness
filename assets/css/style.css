@@ -2403,7 +2403,7 @@ table.spec thead code {
   font-weight: 600;
 }
 
-.operator-bar .operator-pageviews {
+.operator-bar .operator-requests {
   margin-top: 1rem;
   padding-top: 0.75rem;
   border-top: 1px solid var(--krake-border);

@@ -2,7 +2,7 @@
  * Beispielbusiness GmbH – kleine UI-Funktionen
  * - mobile Navigation
  * - Formularvalidierung Kontaktformular (reine Frontend-Prüfung, kein Versand)
- * - anonymer Gesamtzähler für Seitenaufrufe in der Betreiberleiste
+ * - Anzeige des anonymen Gesamtzählers für HTTP-Anfragen in der Betreiberleiste
  * Alle redaktionellen Inhalte stehen im initialen HTML.
  */
 (function () {
@@ -70,27 +70,25 @@
   openDetailsFromHash();
   window.addEventListener("hashchange", openDetailsFromHash);
 
-  /* Seitenaufrufe: eine Anfrage pro geladener Seite, ohne Cookies oder Kennungen. */
+  /* HTTP-Anfragen: Der Server zählt jede Anfrage selbst; hier wird nur der Stand angezeigt. */
   var operatorNotice = document.querySelector('.operator-bar .operator-col[aria-labelledby="hinweis-titel"]');
   if (operatorNotice && window.fetch) {
-    window.fetch("/api/pageviews", {
-      method: "POST",
+    window.fetch("/api/requests", {
       credentials: "omit",
       cache: "no-store",
-      referrerPolicy: "no-referrer",
-      headers: { "X-Pageview": "1" }
+      referrerPolicy: "no-referrer"
     }).then(function (response) {
       if (!response.ok) {
         throw new Error("Counter unavailable");
       }
       return response.json();
     }).then(function (data) {
-      if (!Number.isSafeInteger(data.pageviews) || data.pageviews < 0) {
+      if (!Number.isSafeInteger(data.requests) || data.requests < 0) {
         return;
       }
       var line = document.createElement("p");
-      line.className = "operator-pageviews";
-      line.textContent = "Seitenaufrufe gesamt: " + data.pageviews.toLocaleString("de-DE");
+      line.className = "operator-requests";
+      line.textContent = "HTTP-Anfragen gesamt: " + data.requests.toLocaleString("de-DE");
       operatorNotice.appendChild(line);
     }).catch(function () {
       // Die Website bleibt auch ohne Zähler vollständig nutzbar.

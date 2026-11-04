@@ -3,8 +3,8 @@ FROM python:3.13-alpine
 ENV PYTHONDONTWRITEBYTECODE=1
 
 RUN addgroup -S counter && adduser -S -G counter counter \
-  && mkdir -p /app /data/store \
-  && chown -R counter:counter /data
+  && mkdir -p /app /data/store /sockets \
+  && chown -R counter:counter /data /sockets
 
 COPY server.py /app/server.py
 
