@@ -281,9 +281,11 @@
       }
     }
 
-    /* HTTP-Anfragen: Der Server zählt jede Anfrage selbst; hier wird nur der Stand angezeigt. */
-    var operatorNotice = operatorBar.querySelector(".operator-notice");
-    if (operatorNotice && window.fetch) {
+    /* HTTP-Anfragen: Der Server zählt jede Anfrage selbst; hier wird nur der Stand angezeigt.
+       Der Zähler steht in der Zelle mit dem krake.run-Knopf, unter dem Knopf. */
+    var operatorButton = operatorBar.querySelector(".operator-button");
+    var counterCell = operatorButton && operatorButton.closest(".operator-cell");
+    if (counterCell && window.fetch) {
       window.fetch("/api/requests", {
         credentials: "omit",
         cache: "no-store",
@@ -307,7 +309,7 @@
         line.appendChild(label);
         line.appendChild(document.createTextNode(" "));
         line.appendChild(value);
-        operatorNotice.appendChild(line);
+        counterCell.appendChild(line);
         countUp(value, data.requests);
       }).catch(function () {
         // Die Website bleibt auch ohne Zähler vollständig nutzbar.
